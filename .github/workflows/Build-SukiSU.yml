@@ -47,6 +47,12 @@ on:
           - disable
         default: enable
 
+      LZ4:
+        type: boolean
+        description: "是否启用lz4？"
+        required: true
+        default: false
+
       VFS_PATCH:
         description: "启用 VFS 补丁（添加新钩子） // Enable VFS patch (add new hooks)"
         required: true
@@ -205,6 +211,13 @@ jobs:
           patch -p1 -F 3 < "syscall_hooks.patch" || { echo "应用 vfs 补丁失败"; exit 1; }
           echo "vfs 补丁应用完成"
 
+          if [ "${{ github.event.inputs.LZ4 }}" = "true" ]; then
+          echo "正在给内核打lz4补丁"
+          cp -r ../SukiSU_patch/other/lz4k/include/linux/* ./common/include/linux
+          cp -r ../SukiSU_patch/other/lz4k/lib/* ./common/lib
+          cp -r ../SukiSU_patch/other/lz4k/crypto/* ./common/crypto
+          fi
+
       - name: Configure kernel # 配置内核
         run: |
           cd "$WORKSPACE"
@@ -323,25 +336,3 @@ jobs:
         run: |
           cd "$WORKSPACE/AnyKernel3-KernelSU-Next"
           zip -r "$WORKSPACE/AnyKernel3-${{ inputs.FILE }}-SukiSU-${{ env.KSUVER }}-${{ steps.formatted_date.outputs.formatted }}.zip" *
-
-      - name: Create Release version and upload # 创建正式版本并上传
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "内核发布: ${{ env.BRAND }}-${{ env.MODEL }}-${{ steps.formatted_date.outputs.formatted }}"
-          tag_name: "${{ inputs.FILE }}-${{ steps.formatted_date.outputs.formatted }}"
-          body: |
-            OnePlus Kernel Build
-            - Device 机型: `${{ env.BRAND }} ${{ env.MODEL }}`
-            - SoC 型号: `${{ inputs.SoC }}`
-            - Chipset 代号: `${{ inputs.Chipset }}`
-            - KernelSU 类型: `${{ env.KSU_TYPE }}`
-            - Branch 版本: `${{ env.KSUVER }}`
-            - SUSFS 补丁: `${{ inputs.SUSFS }}`
-            - VFS 补丁: `${{ inputs.VFS_PATCH }}`
-            - Kernel 版本: `${{ inputs.VERSION }}`
-            - 构建时间: `${{ steps.formatted_date.outputs.formatted }}`
-          files: |
-            ${{ env.WORKSPACE }}/AnyKernel3-*.zip
-            ${{ env.WORKSPACE }}/image_output/boot.img
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
